@@ -42,7 +42,7 @@
   </div>
 
 <script>
-  const SPREADSHEET_API_URL = "https://script.google.com/macros/s/AKfycbyzS_7ZSIgO2NDZr8qvoTHaPv3-ctaUZQN-sEK7LI6N60O8PCD9oG_w6pA5brq3sbWt/exec";
+const CSV_URL = "https://api.allorigins.win/raw?url=" + encodeURIComponent("https://docs.google.com/spreadsheets/d/e/2PACX-1vTOHc_uP4sYzVDu_DuAkKpeu92jxj9gFsHtT1zQ-OkHCAmA_x4j_-laRuKmIotNZLxbJsnEhtRuP4EA/pub?output=csv");
 const PERSONAGEM_ALVO = "Alan";
 
 // Configurações e Dados Iniciais
@@ -116,27 +116,47 @@ updateOverlay(characterData);
 
 async function fetchSheetData() {
   try {
-    const response = await fetch(SPREADSHEET_API_URL, { redirect: "follow" });
+    const response = await fetch(CSV_URL);
 
     if (!response.ok) {
       throw new Error(`Erro HTTP: ${response.status}`);
     }
 
-    const listaPersonagens = await response.json();
-    console.log("Dados recebidos da planilha:", listaPersonagens);
+    const textoCsv = await response.text();
+    
+    // Trata quebras de linha do Windows (\r\n) e Linux (\n)
+    const linhas = textoCsv.split(/\r?\n/).map(linha => linha.split(","));
 
-    const dadosPersonagem = listaPersonagens.find(
-      p => String(p.nome).trim().toLowerCase() === PERSONAGEM_ALVO.trim().toLowerCase()
-    );
+    let dadosPersonagem = null;
+
+    // Pula o cabeçalho (linha 0) e busca o personagem correspondente
+    for (let i = 1; i < linhas.length; i++) {
+      let colunas = linhas[i];
+      if (colunas.length > 1 && colunas[0]) {
+        let nomePlanilha = colunas[0].replace(/"/g, "").trim();
+
+        if (nomePlanilha.toLowerCase() === PERSONAGEM_ALVO.trim().toLowerCase()) {
+          dadosPersonagem = {
+            nome: nomePlanilha,
+            fotoUrl: colunas[1] ? colunas[1].replace(/"/g, "").trim() : "",
+            pvMax: colunas[2] ? colunas[2].replace(/"/g, "").trim() : 0,
+            pvAtual: colunas[3] ? colunas[3].replace(/"/g, "").trim() : 0,
+            pdMax: colunas[4] ? colunas[4].replace(/"/g, "").trim() : 0,
+            pdAtual: colunas[5] ? colunas[5].replace(/"/g, "").trim() : 0,
+            impeto: colunas[6] ? colunas[6].replace(/"/g, "").trim() : 0
+          };
+          break;
+        }
+      }
+    }
 
     if (dadosPersonagem) {
-      console.log("Personagem encontrado:", dadosPersonagem);
       updateOverlay(dadosPersonagem);
     } else {
-      console.warn(`Personagem "${PERSONAGEM_ALVO}" não foi encontrado no JSON:`, listaPersonagens);
+      console.warn(`Personagem "${PERSONAGEM_ALVO}" não foi encontrado no CSV.`);
     }
   } catch (error) {
-    console.error("Erro ao buscar dados do Google Sheets:", error);
+    console.error("Erro ao buscar CSV da planilha:", error);
   }
 }
 
