@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../css/executor.css">
+  <title>RPG Portrait Overlay</title>
+
+</head>
+<body>
+
+  <div class="portrait-shell">
+    <img class="outer-frame" src="../img/-borda-executor.png" alt="Borda externa" />
+
+    <div class="portrait-card">
+      <img id="char-img" class="character-art" src="" alt="Personagem" />
+
+    <div class="impeto-container">
+      <div class="impeto-badge">ÍMPETO</div>
+      <div class="impeto-icons" id="impeto-icons">
+        </div>
+    </div>
+
+    <div class="ui-layer">
+      <div class="status-row">
+        <div class="badge">PV</div>
+        <div class="value-text" id="pv-current">0</div>
+        <div class="separator">/</div>
+        <div class="grid-container" id="pv-grid" style="max-width: 90px;"></div>
+      </div>
+
+      <div class="status-row">
+        <div class="badge">PD</div>
+        <div class="value-text" id="pd-current">0</div>
+        <div class="separator">/</div>
+        <div class="grid-container" id="pd-grid" style="max-width: 125px;"></div>
+      </div>
+    </div>
+
+      <div class="character-name" id="char-name">EDGAR</div>
+    </div>
+  </div>
+
+<script>
+  const SPREADSHEET_API_URL = "https://script.google.com/macros/s/AKfycbyzS_7ZSIgO2NDZr8qvoTHaPv3-ctaUZQN-sEK7LI6N60O8PCD9oG_w6pA5brq3sbWt/exec";
+const PERSONAGEM_ALVO = "Alan";
+
+// Configurações e Dados Iniciais
+let characterData = {
+  nome: "???",
+  fotoUrl: "../img/Medo.png",
+  pvMax: 0,
+  pvAtual: 0,
+  pdMax: 0,
+  pdAtual: 0,
+  impeto: 0
+};
+
+// Renderiza a Grid de quadradinhos (PV ou PD)
+function renderGrid(containerId, max, atual) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+
+  // Garante que max e atual sejam números
+  const numMax = parseInt(max) || 0;
+  const numAtual = parseInt(atual) || 0;
+
+  for (let i = 0; i < numMax; i++) {
+    const square = document.createElement("div");
+    square.classList.add("stat-square");
+
+    if (i < numAtual) {
+      square.classList.add("active");
+    } else {
+      square.classList.add("inactive");
+    }
+
+    container.appendChild(square);
+  }
+}
+
+// Renderiza os Ícones de Ímpeto (0 a 3 raios)
+function renderImpeto(quantidade) {
+  const container = document.getElementById("impeto-icons");
+  container.innerHTML = "";
+
+  const numQuantidade = parseInt(quantidade) || 0;
+
+  // Ajustado o caminho da imagem sem a barra inicial '/' para evitar erro no OBS
+  const raySvg = `
+    <div class="ray-icon">
+      <img src="../img/-impeto.png" alt="Raio">
+    </div>
+  `;
+
+  for (let i = 0; i < numQuantidade && i < 3; i++) {
+    container.innerHTML += raySvg;
+  }
+}
+
+// Função Principal para Atualizar a Tela
+function updateOverlay(data) {
+  if (data.nome) document.getElementById("char-name").innerText = data.nome;
+  if (data.fotoUrl) document.getElementById("char-img").src = data.fotoUrl;
+
+  document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
+  document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
+
+  renderGrid("pv-grid", data.pvMax, data.pvAtual);
+  renderGrid("pd-grid", data.pdMax, data.pdAtual);
+  renderImpeto(data.impeto);
+}
+
+// Inicializa com dados zerados/iniciais
+updateOverlay(characterData);
+
+async function fetchSheetData() {
+  try {
+    const response = await fetch(SPREADSHEET_API_URL, { redirect: "follow" });
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`);
+    }
+
+    const listaPersonagens = await response.json();
+    console.log("Dados recebidos da planilha:", listaPersonagens);
+
+    const dadosPersonagem = listaPersonagens.find(
+      p => String(p.nome).trim().toLowerCase() === PERSONAGEM_ALVO.trim().toLowerCase()
+    );
+
+    if (dadosPersonagem) {
+      console.log("Personagem encontrado:", dadosPersonagem);
+      updateOverlay(dadosPersonagem);
+    } else {
+      console.warn(`Personagem "${PERSONAGEM_ALVO}" não foi encontrado no JSON:`, listaPersonagens);
+    }
+  } catch (error) {
+    console.error("Erro ao buscar dados do Google Sheets:", error);
+  }
+}
+
+// Executa imediatamente e depois a cada 1.5s
+fetchSheetData();
+setInterval(fetchSheetData, 1500);
+</script>
+</body>
+</html>
