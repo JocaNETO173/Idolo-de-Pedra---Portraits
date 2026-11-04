@@ -103,10 +103,14 @@
 
   updateOverlay(characterData);
 
-  // Leitura limpa e direta do JSON do Apps Script
+  // Fetch ajustado com os parâmetros obrigatórios para o OBS e o Apps Script
   async function fetchSheetData() {
     try {
-      const response = await fetch(`${APPS_SCRIPT_URL}?t=${new Date().getTime()}`);
+      const response = await fetch(`${APPS_SCRIPT_URL}?t=${new Date().getTime()}`, {
+        method: "GET",
+        mode: "cors",       // Força o modo CORS para liberar o acesso externo
+        redirect: "follow"  // OBRIGATÓRIO: Força o OBS a seguir o redirecionamento da Google
+      });
 
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status}`);
@@ -114,7 +118,6 @@
 
       const listaPersonagens = await response.json();
 
-      // Encontra o personagem Alan na lista JSON
       const dadosPersonagem = listaPersonagens.find(
         p => String(p.nome).trim().toLowerCase() === PERSONAGEM_ALVO.trim().toLowerCase()
       );
@@ -129,8 +132,9 @@
     }
   }
 
+  // Executa imediatamente e atualiza a cada 5 segundos no OBS
   fetchSheetData();
-  setInterval(fetchSheetData, 1500);
+  setInterval(fetchSheetData, 5000);
 </script>
 </body>
 
