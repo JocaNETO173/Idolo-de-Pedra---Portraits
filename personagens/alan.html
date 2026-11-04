@@ -59,6 +59,7 @@
 
   function renderGrid(containerId, max, atual) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     container.innerHTML = "";
     const numMax = parseInt(max) || 0;
     const numAtual = parseInt(atual) || 0;
@@ -77,6 +78,7 @@
 
   function renderImpeto(quantidade) {
     const container = document.getElementById("impeto-icons");
+    if (!container) return;
     container.innerHTML = "";
     const numQuantidade = parseInt(quantidade) || 0;
     const raySvg = `
@@ -90,11 +92,15 @@
   }
 
   function updateOverlay(data) {
-    if (data.nome) document.getElementById("char-name").innerText = data.nome;
-    if (data.fotoUrl) document.getElementById("char-img").src = data.fotoUrl;
+    if (data.nome && document.getElementById("char-name")) {
+      document.getElementById("char-name").innerText = data.nome;
+    }
+    if (data.fotoUrl && document.getElementById("char-img")) {
+      document.getElementById("char-img").src = data.fotoUrl;
+    }
 
-    document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
-    document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
+    if (document.getElementById("pv-current")) document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
+    if (document.getElementById("pd-current")) document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
 
     renderGrid("pv-grid", data.pvMax, data.pvAtual);
     renderGrid("pd-grid", data.pdMax, data.pdAtual);
@@ -103,13 +109,12 @@
 
   updateOverlay(characterData);
 
-  // Fetch ajustado com os parâmetros obrigatórios para o OBS e o Apps Script
   async function fetchSheetData() {
     try {
       const response = await fetch(`${APPS_SCRIPT_URL}?t=${new Date().getTime()}`, {
         method: "GET",
-        mode: "cors",       // Força o modo CORS para liberar o acesso externo
-        redirect: "follow"  // OBRIGATÓRIO: Força o OBS a seguir o redirecionamento da Google
+        mode: "cors",
+        redirect: "follow"
       });
 
       if (!response.ok) {
@@ -129,10 +134,12 @@
       }
     } catch (error) {
       console.error("Erro ao buscar dados do Apps Script:", error);
+      // Se falhar no OBS, mostra o erro discretamente no lugar do nome para sabermos o motivo
+      const nameEl = document.getElementById("char-name");
+      if (nameEl) nameEl.innerText = "Erro de conexão";
     }
   }
 
-  // Executa imediatamente e atualiza a cada 5 segundos no OBS
   fetchSheetData();
   setInterval(fetchSheetData, 5000);
 </script>
