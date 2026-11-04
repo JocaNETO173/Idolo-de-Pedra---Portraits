@@ -118,7 +118,15 @@
 
     async function fetchSheetData() {
       try {
-        const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`, { cache: "no-store" });
+        // Adiciona um carimbo de data/hora único (timestamp) e força requisição fresca
+        const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+        
         if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
 
         const textoCsv = await response.text();
