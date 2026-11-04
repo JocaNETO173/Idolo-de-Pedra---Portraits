@@ -115,11 +115,11 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    max-width: 150px;
+    max-width: 80px;
 }
 
 #pd-grid {
-    max-width: 90px;
+    max-width: 128px;
 }
 
 .stat-square {
