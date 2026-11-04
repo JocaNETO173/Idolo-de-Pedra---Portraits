@@ -44,105 +44,113 @@
   </div>
 
   <script>
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2LP5DtT27RgwyosmCCIbQHwv4QML7cH09A85sijwM26t9rvg2gvYuF1w8pymBtRlq/exec";
-  const PERSONAGEM_ALVO = "Alan";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOHc_uP4sYzVDu_DuAkKpeu92jxj9gFsHtT1zQ-OkHCAmA_x4j_-laRuKmIotNZLxbJsnEhtRuP4EA/pub?gid=0&single=true&output=csv";
+    const PERSONAGEM_ALVO = "Alan";
 
-  let characterData = {
-    nome: "???",
-    fotoUrl: "../img/Medo.png",
-    pvMax: 0,
-    pvAtual: 0,
-    pdMax: 0,
-    pdAtual: 0,
-    impeto: 0
-  };
-
-  function renderGrid(containerId, max, atual) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = "";
-    const numMax = parseInt(max) || 0;
-    const numAtual = parseInt(atual) || 0;
-
-    for (let i = 0; i < numMax; i++) {
-      const square = document.createElement("div");
-      square.classList.add("stat-square");
-      if (i < numAtual) {
-        square.classList.add("active");
-      } else {
-        square.classList.add("inactive");
+    function parseCSVLine(text) {
+      let result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        let char = text[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
       }
-      container.appendChild(square);
-    }
-  }
-
-  function renderImpeto(quantidade) {
-    const container = document.getElementById("impeto-icons");
-    if (!container) return;
-    container.innerHTML = "";
-    const numQuantidade = parseInt(quantidade) || 0;
-    const raySvg = `
-      <div class="ray-icon">
-        <img src="../img/-impeto.png" alt="Raio">
-      </div>
-    `;
-    for (let i = 0; i < numQuantidade && i < 3; i++) {
-      container.innerHTML += raySvg;
-    }
-  }
-
-  function updateOverlay(data) {
-    if (data.nome && document.getElementById("char-name")) {
-      document.getElementById("char-name").innerText = data.nome;
-    }
-    if (data.fotoUrl && document.getElementById("char-img")) {
-      document.getElementById("char-img").src = data.fotoUrl;
+      result.push(current.trim());
+      return result.map(val => val.replace(/^"|"$/g, '').trim());
     }
 
-    if (document.getElementById("pv-current")) document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
-    if (document.getElementById("pd-current")) document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
+    function renderGrid(containerId, max, atual) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = "";
+      const numMax = parseInt(max) || 0;
+      const numAtual = parseInt(atual) || 0;
 
-    renderGrid("pv-grid", data.pvMax, data.pvAtual);
-    renderGrid("pd-grid", data.pdMax, data.pdAtual);
-    renderImpeto(data.impeto);
-  }
+      for (let i = 0; i < numMax; i++) {
+        const square = document.createElement("div");
+        square.classList.add("stat-square");
+        if (i < numAtual) {
+          square.classList.add("active");
+        } else {
+          square.classList.add("inactive");
+        }
+        container.appendChild(square);
+      }
+    }
 
-  updateOverlay(characterData);
+    function renderImpeto(quantidade) {
+      const container = document.getElementById("impeto-icons");
+      if (!container) return;
+      container.innerHTML = "";
+      const numQuantidade = parseInt(quantidade) || 0;
+      const raySvg = `
+        <div class="ray-icon">
+          <img src="../img/-impeto.png" alt="Raio">
+        </div>
+      `;
+      for (let i = 0; i < numQuantidade && i < 3; i++) {
+        container.innerHTML += raySvg;
+      }
+    }
 
-  async function fetchSheetData() {
-    try {
-      const response = await fetch(`${APPS_SCRIPT_URL}?t=${new Date().getTime()}`, {
-        method: "GET",
-        mode: "cors",
-        redirect: "follow"
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+    function updateOverlay(data) {
+      if (data.nome && document.getElementById("char-name")) {
+        document.getElementById("char-name").innerText = data.nome;
+      }
+      if (data.fotoUrl && document.getElementById("char-img")) {
+        document.getElementById("char-img").src = data.fotoUrl;
       }
 
-      const listaPersonagens = await response.json();
+      if (document.getElementById("pv-current")) document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
+      if (document.getElementById("pd-current")) document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
 
-      const dadosPersonagem = listaPersonagens.find(
-        p => String(p.nome).trim().toLowerCase() === PERSONAGEM_ALVO.trim().toLowerCase()
-      );
-
-      if (dadosPersonagem) {
-        updateOverlay(dadosPersonagem);
-      } else {
-        console.warn(`Personagem "${PERSONAGEM_ALVO}" não encontrado no JSON.`);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar dados do Apps Script:", error);
-      // Se falhar no OBS, mostra o erro discretamente no lugar do nome para sabermos o motivo
-      const nameEl = document.getElementById("char-name");
-      if (nameEl) nameEl.innerText = "Erro de conexão";
+      renderGrid("pv-grid", data.pvMax, data.pvAtual);
+      renderGrid("pd-grid", data.pdMax, data.pdAtual);
+      renderImpeto(data.impeto);
     }
-  }
 
-  fetchSheetData();
-  setInterval(fetchSheetData, 5000);
-</script>
+    async function fetchSheetData() {
+      try {
+        const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+
+        const textoCsv = await response.text();
+        const linhas = textoCsv.split(/\r?\n/);
+
+        for (let i = 1; i < linhas.length; i++) {
+          if (!linhas[i].trim()) continue;
+          let colunas = parseCSVLine(linhas[i]);
+          
+          if (colunas.length > 0 && colunas[0].toLowerCase() === PERSONAGEM_ALVO.toLowerCase()) {
+            const dadosPersonagem = {
+              nome: colunas[0],
+              fotoUrl: colunas[1] || "",
+              pvMax: colunas[2] || 0,
+              pvAtual: colunas[3] || 0,
+              pdMax: colunas[4] || 0,
+              pdAtual: colunas[5] || 0,
+              impeto: colunas[6] || 0
+            };
+            updateOverlay(dadosPersonagem);
+            break;
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao buscar CSV:", error);
+      }
+    }
+
+    // Executa na carga inicial e depois busca atualizações a cada 2 segundos
+    fetchSheetData();
+    setInterval(fetchSheetData, 2000);
+  </script>
 </body>
 
 </html>
