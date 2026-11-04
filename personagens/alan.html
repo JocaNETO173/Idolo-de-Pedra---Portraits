@@ -44,128 +44,94 @@
   </div>
 
   <script>
-    // Cole o link do CSV do Google Sheets entre as aspas abaixo:
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOHc_uP4sYzVDu_DuAkKpeu92jxj9gFsHtT1zQ-OkHCAmA_x4j_-laRuKmIotNZLxbJsnEhtRuP4EA/pub?gid=0&single=true&output=csv";
-    const PERSONAGEM_ALVO = "Alan";
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2LP5DtT27RgwyosmCCIbQHwv4QML7cH09A85sijwM26t9rvg2gvYuF1w8pymBtRlq/exec";
+  const PERSONAGEM_ALVO = "Alan";
 
-    // Configurações e Dados Iniciais
-    let characterData = {
-      nome: "???",
-      fotoUrl: "../img/Medo.png",
-      pvMax: 0,
-      pvAtual: 0,
-      pdMax: 0,
-      pdAtual: 0,
-      impeto: 0
-    };
+  let characterData = {
+    nome: "???",
+    fotoUrl: "../img/Medo.png",
+    pvMax: 0,
+    pvAtual: 0,
+    pdMax: 0,
+    pdAtual: 0,
+    impeto: 0
+  };
 
-    // Renderiza a Grid de quadradinhos (PV ou PD)
-    function renderGrid(containerId, max, atual) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = "";
+  function renderGrid(containerId, max, atual) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+    const numMax = parseInt(max) || 0;
+    const numAtual = parseInt(atual) || 0;
 
-      const numMax = parseInt(max) || 0;
-      const numAtual = parseInt(atual) || 0;
-
-      for (let i = 0; i < numMax; i++) {
-        const square = document.createElement("div");
-        square.classList.add("stat-square");
-
-        if (i < numAtual) {
-          square.classList.add("active");
-        } else {
-          square.classList.add("inactive");
-        }
-
-        container.appendChild(square);
+    for (let i = 0; i < numMax; i++) {
+      const square = document.createElement("div");
+      square.classList.add("stat-square");
+      if (i < numAtual) {
+        square.classList.add("active");
+      } else {
+        square.classList.add("inactive");
       }
+      container.appendChild(square);
     }
+  }
 
-    // Renderiza os Ícones de Ímpeto (0 a 3 raios)
-    function renderImpeto(quantidade) {
-      const container = document.getElementById("impeto-icons");
-      container.innerHTML = "";
-
-      const numQuantidade = parseInt(quantidade) || 0;
-
-      const raySvg = `
+  function renderImpeto(quantidade) {
+    const container = document.getElementById("impeto-icons");
+    container.innerHTML = "";
+    const numQuantidade = parseInt(quantidade) || 0;
+    const raySvg = `
       <div class="ray-icon">
         <img src="../img/-impeto.png" alt="Raio">
       </div>
     `;
+    for (let i = 0; i < numQuantidade && i < 3; i++) {
+      container.innerHTML += raySvg;
+    }
+  }
 
-      for (let i = 0; i < numQuantidade && i < 3; i++) {
-        container.innerHTML += raySvg;
+  function updateOverlay(data) {
+    if (data.nome) document.getElementById("char-name").innerText = data.nome;
+    if (data.fotoUrl) document.getElementById("char-img").src = data.fotoUrl;
+
+    document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
+    document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
+
+    renderGrid("pv-grid", data.pvMax, data.pvAtual);
+    renderGrid("pd-grid", data.pdMax, data.pdAtual);
+    renderImpeto(data.impeto);
+  }
+
+  updateOverlay(characterData);
+
+  // Leitura limpa e direta do JSON do Apps Script
+  async function fetchSheetData() {
+    try {
+      const response = await fetch(`${APPS_SCRIPT_URL}?t=${new Date().getTime()}`);
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
       }
-    }
 
-    // Função Principal para Atualizar a Tela
-    function updateOverlay(data) {
-      if (data.nome) document.getElementById("char-name").innerText = data.nome;
-      if (data.fotoUrl) document.getElementById("char-img").src = data.fotoUrl;
+      const listaPersonagens = await response.json();
 
-      document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
-      document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
+      // Encontra o personagem Alan na lista JSON
+      const dadosPersonagem = listaPersonagens.find(
+        p => String(p.nome).trim().toLowerCase() === PERSONAGEM_ALVO.trim().toLowerCase()
+      );
 
-      renderGrid("pv-grid", data.pvMax, data.pvAtual);
-      renderGrid("pd-grid", data.pdMax, data.pdAtual);
-      renderImpeto(data.impeto);
-    }
-
-    // Inicializa com dados zerados/iniciais
-    updateOverlay(characterData);
-
-    // Leitura direta do CSV publicado no Google Sheets
-    async function fetchSheetData() {
-      try {
-        const response = await fetch(CSV_URL);
-
-        if (!response.ok) {
-          throw new Error(`Erro HTTP: ${response.status}`);
-        }
-
-        const textoCsv = await response.text();
-
-        // Divide o texto em linhas, tratando quebras do Windows (\r\n) e Linux (\n)
-        const linhas = textoCsv.split(/\r?\n/).map(linha => linha.split(","));
-
-        let dadosPersonagem = null;
-
-        // Pula a linha 0 (cabeçalho) e busca o Alan
-        for (let i = 1; i < linhas.length; i++) {
-          let colunas = linhas[i];
-          if (colunas.length > 1 && colunas[0]) {
-            let nomePlanilha = colunas[0].replace(/"/g, "").trim();
-
-            if (nomePlanilha.toLowerCase() === PERSONAGEM_ALVO.trim().toLowerCase()) {
-              dadosPersonagem = {
-                nome: nomePlanilha,
-                fotoUrl: colunas[1] ? colunas[1].replace(/"/g, "").trim() : "",
-                pvMax: colunas[2] ? colunas[2].replace(/"/g, "").trim() : 0,
-                pvAtual: colunas[3] ? colunas[3].replace(/"/g, "").trim() : 0,
-                pdMax: colunas[4] ? colunas[4].replace(/"/g, "").trim() : 0,
-                pdAtual: colunas[5] ? colunas[5].replace(/"/g, "").trim() : 0,
-                impeto: colunas[6] ? colunas[6].replace(/"/g, "").trim() : 0
-              };
-              break;
-            }
-          }
-        }
-
-        if (dadosPersonagem) {
-          updateOverlay(dadosPersonagem);
-        } else {
-          console.warn(`Personagem "${PERSONAGEM_ALVO}" não foi encontrado no CSV.`);
-        }
-      } catch (error) {
-        console.error("Erro ao buscar CSV da planilha:", error);
+      if (dadosPersonagem) {
+        updateOverlay(dadosPersonagem);
+      } else {
+        console.warn(`Personagem "${PERSONAGEM_ALVO}" não encontrado no JSON.`);
       }
+    } catch (error) {
+      console.error("Erro ao buscar dados do Apps Script:", error);
     }
+  }
 
-    // Executa imediatamente e atualiza a cada 1.5s
-    fetchSheetData();
-    setInterval(fetchSheetData, 1500);
-  </script>
+  fetchSheetData();
+  setInterval(fetchSheetData, 1500);
+</script>
 </body>
 
 </html>
