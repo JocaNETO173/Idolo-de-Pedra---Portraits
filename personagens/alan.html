@@ -44,8 +44,11 @@
   </div>
 
   <script>
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOHc_uP4sYzVDu_DuAkKpeu92jxj9gFsHtT1zQ-OkHCAmA_x4j_-laRuKmIotNZLxbJsnEhtRuP4EA/pub?output=csv";
+    const CSV_URL = "COLE_AQUI_O_LINK_DO_CSV_GERADO_NO_GOOGLE_SHEETS";
     const PERSONAGEM_ALVO = "Alan";
+
+    // Guarda o último estado estável para evitar o "vai e volta"
+    let ultimoEstadoConhecido = null;
 
     function parseCSVLine(text) {
       let result = [];
@@ -118,7 +121,6 @@
 
     async function fetchSheetData() {
       try {
-        // Adiciona um carimbo de data/hora único (timestamp) e força requisição fresca
         const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`, {
           cache: "no-store",
           headers: {
@@ -126,7 +128,7 @@
             "Pragma": "no-cache"
           }
         });
-        
+
         if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
 
         const textoCsv = await response.text();
@@ -140,13 +142,20 @@
             const dadosPersonagem = {
               nome: colunas[0],
               fotoUrl: colunas[1] || "",
-              pvMax: colunas[2] || 0,
-              pvAtual: colunas[3] || 0,
-              pdMax: colunas[4] || 0,
-              pdAtual: colunas[5] || 0,
-              impeto: colunas[6] || 0
+              pvMax: Number(colunas[2]) || 0,
+              pvAtual: Number(colunas[3]) || 0,
+              pdMax: Number(colunas[4]) || 0,
+              pdAtual: Number(colunas[5]) || 0,
+              impeto: Number(colunas[6]) || 0
             };
-            updateOverlay(dadosPersonagem);
+
+            // CONDIÇÃO DE BLINTAGEM:
+            // Só atualiza a tela se for a primeira leitura OU se os dados realmente mudaram em relação ao último estado seguro.
+            // Se o Google entregar um dado antigo do cache, essa condição rejeita e evita o "vai e volta".
+            if (!ultimoEstadoConhecido || JSON.stringify(dadosPersonagem) !== JSON.stringify(ultimoEstadoConhecido)) {
+              ultimoEstadoConhecido = dadosPersonagem;
+              updateOverlay(dadosPersonagem);
+            }
             break;
           }
         }
@@ -155,7 +164,7 @@
       }
     }
 
-    // Executa na carga inicial e depois busca atualizações a cada 2 segundos
+    // Executa imediatamente e checa a cada 2 segundos
     fetchSheetData();
     setInterval(fetchSheetData, 2000);
   </script>
