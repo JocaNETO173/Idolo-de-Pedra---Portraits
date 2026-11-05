@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,137 +8,135 @@
   <title>RPG Portrait Overlay</title>
 
 </head>
+
 <body>
 
   <div class="portrait-shell">
-    <img class="outer-frame" src="../img/-borda-analista.png" alt="Borda externa" />
+    <img class="outer-frame" src="../img/-borda-executor.png" alt="Borda externa" />
 
     <div class="portrait-card">
-      <img id="char-img" class="character-art" src="" alt="Personagem" />
+      <img id="char-img" class="character-art" src="../img/Medo.png" alt="Personagem" />
 
-    <div class="ui-layer">
-      <div class="status-row">
-        <div class="badge">PV</div>
-        <div class="value-text" id="pv-current">0</div>
-        <div class="separator">/</div>
-        <div class="grid-container" id="pv-grid" style="max-width: 100px;"></div>
+      <div class="impeto-container">
+        <div class="impeto-badge">ÍMPETO</div>
+        <div class="impeto-icons" id="impeto-icons">
+        </div>
       </div>
 
-      <div class="status-row">
-        <div class="badge">PD</div>
-        <div class="value-text" id="pd-current">0</div>
-        <div class="separator">/</div>
-        <div class="grid-container" id="pd-grid" style="max-width: 100px;"></div>
-      </div>
-    </div>
+      <div class="ui-layer">
+        <div class="status-row">
+          <div class="badge">PV</div>
+          <div class="value-text" id="pv-current">0</div>
+          <div class="separator">/</div>
+          <div class="grid-container" id="pv-grid"></div>
+        </div>
 
-      <div class="character-name" id="char-name">EDGAR</div>
+        <div class="status-row">
+          <div class="badge">PD</div>
+          <div class="value-text" id="pd-current">0</div>
+          <div class="separator">/</div>
+          <div class="grid-container" id="pd-grid"></div>
+        </div>
+      </div>
+
+      <div class="character-name" id="char-name">???</div>
     </div>
   </div>
 
   <script>
-    // Cole o link do CSV do Google Sheets entre as aspas abaixo:
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOHc_uP4sYzVDu_DuAkKpeu92jxj9gFsHtT1zQ-OkHCAmA_x4j_-laRuKmIotNZLxbJsnEhtRuP4EA/pub?gid=0&single=true&output=csv";
+    // 1. Cole aqui o ID da sua planilha (ex: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms)
+    const SHEET_ID = "1h90Tv243pGca2BFW53TgFgrjNqUvf6sGT3H734ujXXw";
+
+    // 2. Cole aqui uma Google API Key pública (gratuita)
+    const API_KEY = "AIzaSyBm3akLENKI1nI6lBp3L0Re73mchYcUozU";
+
+    // Nome exato da aba e do personagem
+    const ABA_NOME = "Página1"; // Mude para o nome da sua aba (ex: "Sheet1" ou "Personagens")
     const PERSONAGEM_ALVO = "Kênia";
 
-    // Configurações e Dados Iniciais
-    let characterData = {
-      nome: "???",
-      fotoUrl: "../img/Medo.png",
-      pvMax: 0,
-      pvAtual: 0,
-      pdMax: 0,
-      pdAtual: 0,
-      impeto: 0
-    };
+    // Monta a URL oficial da API do Google v4 (Lê o intervalo A até G da aba)
+    const API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${ABA_NOME}!A:G?key=${API_KEY}`;
 
-    // Renderiza a Grid de quadradinhos (PV ou PD)
+    let ultimoEstadoConhecido = null;
+
     function renderGrid(containerId, max, atual) {
       const container = document.getElementById(containerId);
+      if (!container) return;
       container.innerHTML = "";
-
       const numMax = parseInt(max) || 0;
       const numAtual = parseInt(atual) || 0;
 
       for (let i = 0; i < numMax; i++) {
         const square = document.createElement("div");
         square.classList.add("stat-square");
-
         if (i < numAtual) {
           square.classList.add("active");
         } else {
           square.classList.add("inactive");
         }
-
         container.appendChild(square);
       }
     }
 
-    // Função Principal para Atualizar a Tela
     function updateOverlay(data) {
-      if (data.nome) document.getElementById("char-name").innerText = data.nome;
-      if (data.fotoUrl) document.getElementById("char-img").src = data.fotoUrl;
+      if (data.nome && document.getElementById("char-name")) {
+        document.getElementById("char-name").innerText = data.nome;
+      }
+      if (data.fotoUrl && document.getElementById("char-img")) {
+        document.getElementById("char-img").src = data.fotoUrl;
+      }
 
-      document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
-      document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
+      if (document.getElementById("pv-current")) document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
+      if (document.getElementById("pd-current")) document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
 
       renderGrid("pv-grid", data.pvMax, data.pvAtual);
       renderGrid("pd-grid", data.pdMax, data.pdAtual);
     }
 
-    // Inicializa com dados zerados/iniciais
-    updateOverlay(characterData);
-
-    // Leitura direta do CSV publicado no Google Sheets
     async function fetchSheetData() {
       try {
-        const response = await fetch(CSV_URL);
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Erro HTTP API: ${response.status}`);
 
-        if (!response.ok) {
-          throw new Error(`Erro HTTP: ${response.status}`);
-        }
+        const result = await response.json();
+        const rows = result.values; // Retorna uma matriz de linhas e colunas
 
-        const textoCsv = await response.text();
+        if (!rows || rows.length === 0) return;
 
-        // Divide o texto em linhas, tratando quebras do Windows (\r\n) e Linux (\n)
-        const linhas = textoCsv.split(/\r?\n/).map(linha => linha.split(","));
+        // Pula o cabeçalho (começa no i = 1)
+        for (let i = 1; i < rows.length; i++) {
+          let colunas = rows[i];
 
-        let dadosPersonagem = null;
+          if (colunas && colunas[0] && colunas[0].trim().toLowerCase() === PERSONAGEM_ALVO.toLowerCase()) {
+            const dadosPersonagem = {
+              nome: colunas[0],
+              fotoUrl: colunas[1] || "",
+              pvMax: Number(colunas[2]) || 0,
+              pvAtual: Number(colunas[3]) || 0,
+              pdMax: Number(colunas[4]) || 0,
+              pdAtual: Number(colunas[5]) || 0,
+              impeto: Number(colunas[6]) || 0
+            };
 
-        // Pula a linha 0 (cabeçalho) e busca o Alan
-        for (let i = 1; i < linhas.length; i++) {
-          let colunas = linhas[i];
-          if (colunas.length > 1 && colunas[0]) {
-            let nomePlanilha = colunas[0].replace(/"/g, "").trim();
+            const jsonAtual = JSON.stringify(dadosPersonagem);
 
-            if (nomePlanilha.toLowerCase() === PERSONAGEM_ALVO.trim().toLowerCase()) {
-              dadosPersonagem = {
-                nome: nomePlanilha,
-                fotoUrl: colunas[1] ? colunas[1].replace(/"/g, "").trim() : "",
-                pvMax: colunas[2] ? colunas[2].replace(/"/g, "").trim() : 0,
-                pvAtual: colunas[3] ? colunas[3].replace(/"/g, "").trim() : 0,
-                pdMax: colunas[4] ? colunas[4].replace(/"/g, "").trim() : 0,
-                pdAtual: colunas[5] ? colunas[5].replace(/"/g, "").trim() : 0,
-                impeto: colunas[6] ? colunas[6].replace(/"/g, "").trim() : 0
-              };
-              break;
+            // Atualiza apenas se houver mudança real na base de dados oficial
+            if (!ultimoEstadoConhecido || jsonAtual !== JSON.stringify(ultimoEstadoConhecido)) {
+              ultimoEstadoConhecido = dadosPersonagem;
+              updateOverlay(dadosPersonagem);
             }
+            break;
           }
         }
-
-        if (dadosPersonagem) {
-          updateOverlay(dadosPersonagem);
-        } else {
-          console.warn(`Personagem "${PERSONAGEM_ALVO}" não foi encontrado no CSV.`);
-        }
       } catch (error) {
-        console.error("Erro ao buscar CSV da planilha:", error);
+        console.error("Erro ao buscar dados da API do Google:", error);
       }
     }
 
-    // Executa imediatamente e atualiza a cada 1.5s
+    // Executa na carga e atualiza a cada 2 segundos direto na fonte limpa
     fetchSheetData();
-    setInterval(fetchSheetData, 1500);
+    setInterval(fetchSheetData, 4000);
   </script>
 </body>
+
 </html>
