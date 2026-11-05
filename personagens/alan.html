@@ -44,151 +44,115 @@
   </div>
 
   <script>
-  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOHc_uP4sYzVDu_DuAkKpeu92jxj9gFsHtT1zQ-OkHCAmA_x4j_-laRuKmIotNZLxbJsnEhtRuP4EA/pub?output=csv";
-  const PERSONAGEM_ALVO = "Alan";
+    // 1. Cole aqui o ID da sua planilha (ex: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms)
+    const SHEET_ID = "1h90Tv243pGca2BFW53TgFgrjNqUvf6sGT3H734ujXXw";
+    
+    // 2. Cole aqui uma Google API Key pública (gratuita)
+    const API_KEY = "AIzaSyBm3akLENKI1nI6lBp3L0Re73mchYcUozU";
+    
+    // Nome exato da aba e do personagem
+    const ABA_NOME = "Página1"; // Mude para o nome da sua aba (ex: "Sheet1" ou "Personagens")
+    const PERSONAGEM_ALVO = "Alan";
 
-  // Estado atual fixado na tela
-  let estadoFixado = null;
-  // Guarda a última leitura para confirmar se o novo valor é estável
-  let leituraPendente = null;
+    // Monta a URL oficial da API do Google v4 (Lê o intervalo A até G da aba)
+    const API_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${ABA_NOME}!A:G?key=${API_KEY}`;
 
-  function parseCSVLine(text) {
-    let result = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < text.length; i++) {
-      let char = text[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        result.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    result.push(current.trim());
-    return result.map(val => val.replace(/^"|"$/g, '').trim());
-  }
+    let ultimoEstadoConhecido = null;
 
-  function renderGrid(containerId, max, atual) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = "";
-    const numMax = parseInt(max) || 0;
-    const numAtual = parseInt(atual) || 0;
+    function renderGrid(containerId, max, atual) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = "";
+      const numMax = parseInt(max) || 0;
+      const numAtual = parseInt(atual) || 0;
 
-    for (let i = 0; i < numMax; i++) {
-      const square = document.createElement("div");
-      square.classList.add("stat-square");
-      if (i < numAtual) {
-        square.classList.add("active");
-      } else {
-        square.classList.add("inactive");
-      }
-      container.appendChild(square);
-    }
-  }
-
-  function renderImpeto(quantidade) {
-    const container = document.getElementById("impeto-icons");
-    if (!container) return;
-    container.innerHTML = "";
-    const numQuantidade = parseInt(quantidade) || 0;
-    const raySvg = `
-      <div class="ray-icon">
-        <img src="../img/-impeto.png" alt="Raio">
-      </div>
-    `;
-    for (let i = 0; i < numQuantidade && i < 3; i++) {
-      container.innerHTML += raySvg;
-    }
-  }
-
-  function updateOverlay(data) {
-    if (data.nome && document.getElementById("char-name")) {
-      document.getElementById("char-name").innerText = data.nome;
-    }
-    if (data.fotoUrl && document.getElementById("char-img")) {
-      document.getElementById("char-img").src = data.fotoUrl;
-    }
-
-    if (document.getElementById("pv-current")) document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
-    if (document.getElementById("pd-current")) document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
-
-    renderGrid("pv-grid", data.pvMax, data.pvAtual);
-    renderGrid("pd-grid", data.pdMax, data.pdAtual);
-    renderImpeto(data.impeto);
-  }
-
-  async function fetchSheetData() {
-    try {
-      const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`, {
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache"
+      for (let i = 0; i < numMax; i++) {
+        const square = document.createElement("div");
+        square.classList.add("stat-square");
+        if (i < numAtual) {
+          square.classList.add("active");
+        } else {
+          square.classList.add("inactive");
         }
-      });
+        container.appendChild(square);
+      }
+    }
 
-      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+    function renderImpeto(quantidade) {
+      const container = document.getElementById("impeto-icons");
+      if (!container) return;
+      container.innerHTML = "";
+      const numQuantidade = parseInt(quantidade) || 0;
+      const raySvg = `
+        <div class="ray-icon">
+          <img src="../img/-impeto.png" alt="Raio">
+        </div>
+      `;
+      for (let i = 0; i < numQuantidade && i < 3; i++) {
+        container.innerHTML += raySvg;
+      }
+    }
 
-      const textoCsv = await response.text();
-      const linhas = textoCsv.split(/\r?\n/);
+    function updateOverlay(data) {
+      if (data.nome && document.getElementById("char-name")) {
+        document.getElementById("char-name").innerText = data.nome;
+      }
+      if (data.fotoUrl && document.getElementById("char-img")) {
+        document.getElementById("char-img").src = data.fotoUrl;
+      }
 
-      for (let i = 1; i < linhas.length; i++) {
-        if (!linhas[i].trim()) continue;
-        let colunas = parseCSVLine(linhas[i]);
-        
-        if (colunas.length > 0 && colunas[0].toLowerCase() === PERSONAGEM_ALVO.toLowerCase()) {
-          const dadosRecebidos = {
-            nome: colunas[0],
-            fotoUrl: colunas[1] || "",
-            pvMax: Number(colunas[2]) || 0,
-            pvAtual: Number(colunas[3]) || 0,
-            pdMax: Number(colunas[4]) || 0,
-            pdAtual: Number(colunas[5]) || 0,
-            impeto: Number(colunas[6]) || 0
-          };
+      if (document.getElementById("pv-current")) document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
+      if (document.getElementById("pd-current")) document.getElementById("pd-current").innerText = data.pdAtual ?? 0;
 
-          const jsonRecebido = JSON.stringify(dadosRecebidos);
+      renderGrid("pv-grid", data.pvMax, data.pvAtual);
+      renderGrid("pd-grid", data.pdMax, data.pdAtual);
+      renderImpeto(data.impeto);
+    }
 
-          // 1. Primeira execução: renderiza imediatamente
-          if (!estadoFixado) {
-            estadoFixado = dadosRecebidos;
-            updateOverlay(dadosRecebidos);
+    async function fetchSheetData() {
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Erro HTTP API: ${response.status}`);
+
+        const result = await response.json();
+        const rows = result.values; // Retorna uma matriz de linhas e colunas
+
+        if (!rows || rows.length === 0) return;
+
+        // Pula o cabeçalho (começa no i = 1)
+        for (let i = 1; i < rows.length; i++) {
+          let colunas = rows[i];
+          
+          if (colunas && colunas[0] && colunas[0].trim().toLowerCase() === PERSONAGEM_ALVO.toLowerCase()) {
+            const dadosPersonagem = {
+              nome: colunas[0],
+              fotoUrl: colunas[1] || "",
+              pvMax: Number(colunas[2]) || 0,
+              pvAtual: Number(colunas[3]) || 0,
+              pdMax: Number(colunas[4]) || 0,
+              pdAtual: Number(colunas[5]) || 0,
+              impeto: Number(colunas[6]) || 0
+            };
+
+            const jsonAtual = JSON.stringify(dadosPersonagem);
+
+            // Atualiza apenas se houver mudança real na base de dados oficial
+            if (!ultimoEstadoConhecido || jsonAtual !== JSON.stringify(ultimoEstadoConhecido)) {
+              ultimoEstadoConhecido = dadosPersonagem;
+              updateOverlay(dadosPersonagem);
+            }
             break;
           }
-
-          // 2. Se o valor recebido é exatamente o que já está na tela, limpa pendências
-          if (jsonRecebido === JSON.stringify(estadoFixado)) {
-            leituraPendente = null;
-            break;
-          }
-
-          // 3. Se é um valor novo, exige 2 leituras consecutivas iguais antes de alterar a tela
-          if (leituraPendente && JSON.stringify(leituraPendente) === jsonRecebido) {
-            // Confirmado! O novo valor se manteve estável e não era oscilação de cache
-            estadoFixado = dadosRecebidos;
-            updateOverlay(dadosRecebidos);
-            leituraPendente = null;
-          } else {
-            // Guardamos como suspeita e esperamos a próxima checagem para confirmar
-            leituraPendente = dadosRecebidos;
-          }
-
-          break;
         }
+      } catch (error) {
+        console.error("Erro ao buscar dados da API do Google:", error);
       }
-    } catch (error) {
-      console.error("Erro ao buscar CSV:", error);
     }
-  }
 
-  // Checa o CSV a cada 1.5 segundos
-  fetchSheetData();
-  setInterval(fetchSheetData, 1500);
-</script>
+    // Executa na carga e atualiza a cada 2 segundos direto na fonte limpa
+    fetchSheetData();
+    setInterval(fetchSheetData, 2000);
+  </script>
 </body>
 
 </html>
