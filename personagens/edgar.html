@@ -15,7 +15,8 @@
     <img class="outer-frame" src="../img/-borda-executor.png" alt="Borda externa" />
 
     <div class="portrait-card">
-      <img id="char-img" class="character-art" src="../img/Medo.png" alt="Personagem" />
+      <!-- <img id="char-img" class="character-art" src="../img/Medo.png" alt="Personagem" /> -->
+      <video id="char-video" class="character-art" autoplay loop muted playsinline></video>
 
       <div class="impeto-container">
         <div class="impeto-badge">ÍMPETO</div>
@@ -46,10 +47,10 @@
   <script>
     // 1. Cole aqui o ID da sua planilha (ex: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms)
     const SHEET_ID = "1h90Tv243pGca2BFW53TgFgrjNqUvf6sGT3H734ujXXw";
-    
+
     // 2. Cole aqui uma Google API Key pública (gratuita)
     const API_KEY = "AIzaSyBm3akLENKI1nI6lBp3L0Re73mchYcUozU";
-    
+
     // Nome exato da aba e do personagem
     const ABA_NOME = "Página1"; // Mude para o nome da sua aba (ex: "Sheet1" ou "Personagens")
     const PERSONAGEM_ALVO = "Edgar";
@@ -97,8 +98,21 @@
       if (data.nome && document.getElementById("char-name")) {
         document.getElementById("char-name").innerText = data.nome;
       }
-      if (data.fotoUrl && document.getElementById("char-img")) {
-        document.getElementById("char-img").src = data.fotoUrl;
+
+      // Lógica para o WebM Animado
+      if (data.fotoUrl) {
+        const videoEl = document.getElementById("char-video");
+        if (videoEl) {
+          // Pega apenas o nome do arquivo ou a URL atual para comparar
+          // Compara se o vídeo atual é diferente do que veio da planilha
+          if (!videoEl.src.includes(data.fotoUrl)) {
+            videoEl.src = data.fotoUrl;
+            videoEl.load();
+            videoEl.play().catch(error => {
+              console.log("Erro ao reproduzir o vídeo:", error);
+            });
+          }
+        }
       }
 
       if (document.getElementById("pv-current")) document.getElementById("pv-current").innerText = data.pvAtual ?? 0;
@@ -122,7 +136,7 @@
         // Pula o cabeçalho (começa no i = 1)
         for (let i = 1; i < rows.length; i++) {
           let colunas = rows[i];
-          
+
           if (colunas && colunas[0] && colunas[0].trim().toLowerCase() === PERSONAGEM_ALVO.toLowerCase()) {
             const dadosPersonagem = {
               nome: colunas[0],
